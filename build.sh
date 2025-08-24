@@ -1,4 +1,6 @@
 #!/usr/bin/env sh
+set -e
 
-gcc ./src/main.c -o ./out/idc
+mkdir -p ./out
+gcc ./src/*.c -o ./out/idc -std=c99 -Wall -Werror
 ./out/idc $@
