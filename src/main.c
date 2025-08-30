@@ -1,138 +1,105 @@
 #define _POSIX_C_SOURCE 200809L
-#include <assert.h>
 #include <dirent.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
-#include <sys/types.h>
-#include <unistd.h>
+#include <uchar.h>
 
-typedef struct Entry Entry;
-
-struct Entry {
+typedef struct {
   char *path;
-  bool path_owned;
-  Entry *parent;
-  Entry *children;
-  size_t children_capacity;
-  size_t children_index;
-  size_t children_len;
-  size_t elements;
   size_t size;
-};
+  size_t parent_id;
+  size_t child_id;
+  size_t elements;
+  bool root;
+} Entry;
 
-Entry entry_create(char *path, bool path_owned, Entry *parent, size_t size) {
-  size_t capacity = 8;
-  return (Entry){
-      .path = path,
-      .path_owned = path_owned,
-      .parent = parent,
-      .children = malloc(sizeof(Entry) * capacity),
-      .children_capacity = capacity,
-      .children_len = 0,
-      .elements = 0,
-      .size = size,
+Entry *entries = NULL;
+size_t entries_len = 0;
+size_t entries_capacity = 1024;
 
-  };
-}
-
-void entry_destroy(Entry *entry) {
-  for (size_t i = 0; i < entry->children_len; i++) {
-    entry_destroy(entry->children + i);
-  }
-  if (entry->path_owned) {
-    free(entry->path);
-  }
-  free(entry->children);
-}
-
-void add_element(Entry *self) {
-  if (self->parent != NULL) {
-    add_element(self->parent);
-  }
-  self->elements++;
-}
-
-void add_child(Entry *self, Entry *child) {
-  if (self->children_len == self->children_capacity) {
-    self->children_capacity *= 1.5;
-    self->children = realloc(self->children, sizeof(Entry) * self->children_capacity);
-  }
-  memcpy(self->children + self->children_len, child, sizeof(Entry));
-  self->children_len++;
-  self->size += child->size;
-  add_element(self);
-}
-
-void print_entry(Entry *entry, bool a) {
-  printf("%s %zu %f\n", entry->path, entry->elements, entry->size / 1024 / 1024.0);
-  for (size_t i = 0; i < entry->children_len; i++) {
-    if (a)
-      print_entry(entry->children + i, false);
-  }
-}
-
-int cmp_element(const void *a, const void *b) { return ((Entry *)b)->elements - ((Entry *)a)->elements; }
-
-int cmp_size(const void *a, const void *b) {
-  long result = ((Entry *)b)->size - ((Entry *)a)->size;
-  if (result < 0) {
-    return -1;
-  } else if (result > 0) {
-    return 1;
-  }
-  return 0;
-}
-
-void sort_entry(Entry *entry, bool sort_by_size) {
-  if (sort_by_size) {
-    qsort(entry->children, entry->children_len, sizeof(Entry), cmp_size);
-  } else {
-    qsort(entry->children, entry->children_len, sizeof(Entry), cmp_element);
-  }
-  for (size_t i = 0; i < entry->children_len; i++) {
-    sort_entry(entry->children + i, sort_by_size);
-    (entry->children + i)->parent = entry; // TODO: check if it's work
-  }
-}
-
-void walk(Entry *parent) {
-  DIR *root_dir = opendir(parent->path); // home_dir
-  if (root_dir == NULL) {
+void walk(size_t root_id) {
+  DIR *root_dir = opendir(entries[root_id].path);
+  if (root_dir == NULL)
     return;
-  }
   struct dirent *d;
   while ((d = readdir(root_dir)) != NULL) {
-    // ignore .. and .
-    if (strcmp(d->d_name, "..") == 0 || strcmp(d->d_name, ".") == 0) {
+    if (strcmp(d->d_name, "..") == 0 || strcmp(d->d_name, ".") == 0)
       continue;
-    }
-    char *path = malloc(strlen(parent->path) + strlen(d->d_name) + 2);
-    strcpy(path, parent->path);
+    char *path = malloc(strlen(entries[root_id].path) + strlen(d->d_name) + 2);
+    strcpy(path, entries[root_id].path);
     strcat(path, "/");
     strcat(path, d->d_name);
     struct stat stat;
     lstat(path, &stat);
-    Entry entry = entry_create(path, true, parent, stat.st_size);
-    if (d->d_type == 4) {
-      walk(&entry);
+    if (entries_len == entries_capacity) {
+      entries_capacity *= 1.5;
+      entries = realloc(entries, sizeof(Entry) * entries_capacity);
     }
-    add_child(parent, &entry);
+    size_t child_id = entries_len++;
+    entries[child_id] =
+        (Entry){.path = path, .size = stat.st_size, .parent_id = root_id, .elements = 0, .child_id = 0};
+    if (d->d_type == 4) {
+      walk(child_id);
+    }
+    entries[root_id].elements += entries[child_id].elements + 1;
+    entries[root_id].size += entries[child_id].size;
   }
   closedir(root_dir);
 }
 
+void select(size_t offset, size_t parent_id) {
+  size_t best_match_value = 0;
+  size_t best_match_index = offset;
+  Entry *entry = entries + offset;
+  while (offset < entries_len) {
+    if (entry->parent_id == parent_id) {
+      if (entry->elements > best_match_value) {
+        best_match_value = entry->elements;
+        best_match_index = offset;
+      }
+    }
+    offset++;
+    entry++;
+  }
+  entry = entries + best_match_index;
+  if (entry->elements > 0) {
+    select(best_match_index + 1, best_match_index);
+  } else {
+    size_t child_id = 0;
+    size_t current = best_match_index;
+    while (true) {
+      entry->child_id = child_id;
+      child_id = current;
+      current = entry->parent_id;
+      entry = entries + current;
+      if (entry->root == true) {
+        entry->child_id = child_id;
+        break;
+      }
+    }
+    printf("%s - %zu - %zu\n", entry->path, entry->elements, entry->child_id);
+    while (entry->child_id) {
+      entry = entries + entry->child_id;
+      if (entry->elements == 0) {
+        printf("%s\n", entry->path);
+      } else {
+        printf("%s - %zu\n", entry->path, entry->elements);
+      }
+    }
+  }
+}
+
 int main(int argc, char *argv[]) {
-  printf("incremental-disk-cleaner\n");
-
-  char *home = getenv("HOME");
-  Entry root_entry = entry_create(home, false, NULL, 0);
-  walk(&root_entry);
-  sort_entry(&root_entry, true);
-  print_entry(&root_entry, true);
-  entry_destroy(&root_entry);
-
+  entries = malloc(sizeof(Entry) * entries_capacity);
+  char *home_path = strdup(getenv("HOME"));
+  entries[entries_len++] =
+      (Entry){.path = home_path, .size = 0, .parent_id = 0, .elements = 0, .child_id = 0, .root = true};
+  walk(0);
+  select(1, 0);
+  free(entries);
   return EXIT_SUCCESS;
 }
