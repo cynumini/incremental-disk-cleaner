@@ -51,7 +51,8 @@ void walk(size_t root_id) {
   closedir(root_dir);
 }
 
-void select(size_t offset, size_t parent_id) {
+void select(size_t parent_id) {
+  size_t offset = parent_id + 1;
   size_t best_match_value = 0;
   size_t best_match_index = offset;
   Entry *entry = entries + offset;
@@ -67,7 +68,7 @@ void select(size_t offset, size_t parent_id) {
   }
   entry = entries + best_match_index;
   if (entry->elements > 0) {
-    select(best_match_index + 1, best_match_index);
+    select(best_match_index);
   } else {
     size_t child_id = 0;
     size_t current = best_match_index;
@@ -81,7 +82,7 @@ void select(size_t offset, size_t parent_id) {
         break;
       }
     }
-    printf("%s - %zu - %zu\n", entry->path, entry->elements, entry->child_id);
+    printf("%s - %zu\n", entry->path, entry->elements);
     while (entry->child_id) {
       entry = entries + entry->child_id;
       if (entry->elements == 0) {
@@ -99,7 +100,7 @@ int main(int argc, char *argv[]) {
   entries[entries_len++] =
       (Entry){.path = home_path, .size = 0, .parent_id = 0, .elements = 0, .child_id = 0, .root = true};
   walk(0);
-  select(1, 0);
+  select(0);
   free(entries);
   return EXIT_SUCCESS;
 }
