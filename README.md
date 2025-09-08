@@ -21,7 +21,7 @@ This makes it easier to incrementally clean up space or understand the structure
 	- size - picks the largest directory/file by total size.
 	- count - picks the directory with the most children.
 - Lets you add the discovered directory/file or its parent directories to a known paths list so they won’t be considered next time.
-- Stores known paths in: `~/.local/share/idc/known_paths.txt`
+- Stores known paths in: `~/.local/share/idc/known_paths.txt`.
 - Can be run directly or installed into your `$PATH`.
 
 ## Installation
@@ -34,7 +34,7 @@ cd incremental-disk-cleaner
 ./build.sh install ~/.local/bin
 ```
 
-This installs the idc command into ~/.local/bin. Make sure ~/.local/bin is in your $PATH.
+This installs the idc command into `~/.local/bin`. Make sure `~/.local/bin` is in your `$PATH`.
 
 ## Usage
 
