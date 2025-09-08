@@ -137,7 +137,16 @@ void print_help_and_exit(void)
 void print_entry(Entry *entry)
 {
     if (use_count)
-        printf("%s - %zu\n", entry->path, entry->count);
+    {
+        if (entry->count > 0)
+        {
+            printf("%s - %zu\n", entry->path, entry->count);
+        }
+        else
+        {
+            printf("%s\n", entry->path);
+        }
+    }
     else if (entry->size < 1024)
         printf("%s - %zuB\n", entry->path, entry->size);
     else if (entry->size < pow(1024, 2))
