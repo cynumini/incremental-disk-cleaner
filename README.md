@@ -60,3 +60,7 @@ Or run the debug build inside the project directory:
    1. Remove this path or its parent path using an external tool (`rm`, `mv`, or a file manager of your choice).
    2. Add this path or its parents to the known paths list at `~/.local/share/idc/know_paths.txt`. Use the `a` key to add, and `u`/`d` to navigate between parent paths.
 5. Run the program again.
+
+# License
+
+MIT License. See [LICENSE](LICENSE) for details.
