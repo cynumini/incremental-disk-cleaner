@@ -51,6 +51,11 @@ void add_known_path(char *path)
         known_paths_capacity *= 2;
         known_paths = realloc(known_paths, sizeof(char *) * known_paths_capacity);
     }
+    usize last_char_position = strlen(path) - 1;
+    if (path[last_char_position] == '/')
+    {
+        path[last_char_position] = 0;
+    }
     known_paths[known_paths_len++] = strdup(path);
 }
 
