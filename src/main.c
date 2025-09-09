@@ -257,6 +257,15 @@ int main(int argc, char *argv[])
         {
         case 'a':
             add_known_path(entry->path);
+            file = fopen(known_paths_path, "w");
+            assert(file != NULL);
+            for (usize i = 0; i < known_paths_len; i++)
+            {
+                fprintf(file, "%s\n", known_paths[i]);
+                free(known_paths[i]);
+            }
+            fclose(file);
+            free(known_paths);
             running = false;
             break;
         case 'q':
@@ -277,15 +286,6 @@ int main(int argc, char *argv[])
 
     // free and save
     free(entries);
-    file = fopen(known_paths_path, "w");
-    assert(file != NULL);
-    for (usize i = 0; i < known_paths_len; i++)
-    {
-        fprintf(file, "%s\n", known_paths[i]);
-        free(known_paths[i]);
-    }
-    fclose(file);
-    free(known_paths);
 
     return EXIT_SUCCESS;
 }
